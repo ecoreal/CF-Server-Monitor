@@ -520,6 +520,17 @@ async function handleLoginAction({ request, env, sys, data }) {
   }
 }
 
+async function handleIssueTokenAction({ env, sys }) {
+  // GitHub 登录只写 HttpOnly cookie，前端拿不到 JWT；此 action 在 checkAuth 通过后
+  // 用同一 secret 现签一个 token 返回给前端，供 Authorization 头与跨站 WebSocket 使用
+  try {
+    const token = await generateToken(env, sys);
+    return createSuccessResponse({ success: true, token });
+  } catch (e) {
+    return createErrorResponse(e);
+  }
+}
+
 function handleLogoutAction({ request }) {
   return createSuccessResponseWithCookies({
     success: true
@@ -741,6 +752,7 @@ async function handleSendTestNotificationAction({ data }) {
 
 const AUTHENTICATED_ADMIN_ACTION_HANDLERS = {
   get_settings: handleGetSettingsAction,
+  issue_token: handleIssueTokenAction,
   start_theme_preview: handleStartThemePreviewAction,
   save_theme_options: handleSaveThemeOptionsAction,
   list: handleListAction,

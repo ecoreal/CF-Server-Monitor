@@ -433,6 +433,16 @@ export const logout = () => {
   localStorage.removeItem('jwt_token')
 }
 
+// GitHub 登录只写 HttpOnly cookie，前端无 jwt_token；登录后调用一次，
+// 用 cookie 会话换回一个与密码登录等价的 token 存进 localStorage，供 Authorization 头与跨站 WebSocket 使用
+export const fetchSessionToken = async (apiIndex = 0) => {
+  const result = await http.postByIndex('/admin/api', { action: 'issue_token' }, apiIndex, { autoRedirect: false })
+  if (!result.error && result.data && result.data.token) {
+    localStorage.setItem('jwt_token', result.data.token)
+  }
+  return result
+}
+
 export const fetchConfig = async (apiIndex = 0) => {
   const result = await http.getByIndex('/api/config', apiIndex, { includeAuth: true, includeTurnstile: false })
   if (result.error) return null

@@ -72,7 +72,8 @@ test('GitHub OAuth callback issues the existing auth cookie without a database l
     const response = await handleGithubOAuthCallback(callbackRequest, {}, oauthSettings);
 
     assert.equal(response.status, 302);
-    assert.equal(response.headers.get('Location'), 'https://monitor.example/admin');
+    // 登录成功回跳带 github_login=1，前端据此用 cookie 会话换回 localStorage jwt_token
+    assert.equal(response.headers.get('Location'), 'https://monitor.example/admin?github_login=1');
     assert.equal(calls.length, 2);
     assert.match(calls[0].options.body, /client_secret=client-secret/);
 
@@ -86,6 +87,37 @@ test('GitHub OAuth callback issues the existing auth cookie without a database l
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+test('issue_token mints a jwt from an existing cookie session for the frontend', async () => {
+  const { handleAdminAPI } = await import('../src/handlers/admin.js');
+  const cookieToken = await generateToken({}, oauthSettings);
+  const request = new Request('https://monitor.example/admin/api', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Cookie: `cfsm_auth=${cookieToken}` },
+    body: JSON.stringify({ action: 'issue_token' })
+  });
+
+  const body = await (await handleAdminAPI(request, {}, oauthSettings)).json();
+  assert.equal(body.success, true);
+  assert.ok(body.token);
+
+  // 返回的 token 与密码登录等价：可作 Bearer 通过 checkAuth
+  const authenticated = await checkAuth(new Request('https://monitor.example/admin/api', {
+    headers: { Authorization: `Bearer ${body.token}` }
+  }), {}, oauthSettings);
+  assert.equal(authenticated, true);
+});
+
+test('issue_token without a valid session is rejected', async () => {
+  const { handleAdminAPI } = await import('../src/handlers/admin.js');
+  const request = new Request('https://monitor.example/admin/api', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'issue_token' })
+  });
+  const response = await handleAdminAPI(request, {}, oauthSettings);
+  assert.equal(response.status, 401);
 });
 
 test('binding stores the authenticated GitHub account with one D1 write and no D1 read', async () => {

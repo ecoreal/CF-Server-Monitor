@@ -55,6 +55,7 @@
   - [3.12](#312-action-send_test_notification---发送测试通知) [`action: send_test_notification`](#312-action-send_test_notification---发送测试通知) [- 发送测试通知](#312-action-send_test_notification---发送测试通知)
   - [3.13](#313-action-export_servers---导出服务器) [`action: export_servers`](#313-action-export_servers---导出服务器) [- 导出服务器](#313-action-export_servers---导出服务器)
   - [3.14](#314-action-import_servers---导入服务器) [`action: import_servers`](#314-action-import_servers---导入服务器) [- 导入服务器](#314-action-import_servers---导入服务器)
+  - [3.15](#315-action-issue-token---用现有会话换取前端-jwt) [`action: issue_token`](#315-action-issue-token---用现有会话换取前端-jwt) [- 用现有会话换取前端 JWT](#315-action-issue-token---用现有会话换取前端-jwt)
 - [4. 系统维护端点](#4-系统维护端点)
   - [4.1](#41-post-updatedatabase---数据库迁移) [`POST /updateDatabase`](#41-post-updatedatabase---数据库迁移) [- 数据库迁移](#41-post-updatedatabase---数据库迁移)
   - [4.2](#42-post-clearhistory---清空历史数据) [`POST /clearHistory`](#42-post-clearhistory---清空历史数据) [- 清空历史数据](#42-post-clearhistory---清空历史数据)
@@ -1713,6 +1714,26 @@ UUID 缺失或格式非法时返回 `400 { "error": "invalidServerId", "code": 4
 ```
 
 全部记录均跳过时仍返回 `200`，`message` 为 `noServersImported`。
+
+***
+
+### 3.15 `action: issue_token` - 用现有会话换取前端 JWT
+
+GitHub OAuth 登录仅写入 HttpOnly Cookie（`cfsm_auth`），前端 JS 无法读取。回跳 `/admin?github_login=1` 后，前端凭已建立的 Cookie 会话调用本 action，用同一 `jwt_secret` 现签一个与密码登录等价的 JWT，存入 `localStorage.jwt_token`，供后续 `Authorization` 头与跨站 WebSocket（`?token=`）使用。
+
+需通过 `checkAuth`（Cookie 或 Bearer 任一有效即可），无有效会话返回 `401`。
+
+**Request**
+
+```json
+{ "action": "issue_token" }
+```
+
+**Response 200**
+
+```json
+{ "success": true, "token": "<jwt>" }
+```
 
 ***
 

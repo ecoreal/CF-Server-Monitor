@@ -215,10 +215,12 @@ export async function handleGithubOAuthCallback(request, env, settings) {
     }
 
     const token = await generateToken(env, settings);
+    // github_login=1 是给前端换票用的标记；前端 normalizeAdminEntryUrl 会把这段 search 归一化进 hash，
+    // 才能被 route.query 读到并调 issue_token 换回 localStorage jwt_token（与 github_bound/error 同一机制）
     return redirectToAdmin(request, '', [
       buildAuthCookie(request, token),
       clearStateCookie
-    ]);
+    ], { github_login: '1' });
   } catch (error) {
     console.error('GitHub OAuth callback failed:', error?.message || error);
     return redirectToAdmin(request, 'request_failed', [clearStateCookie]);

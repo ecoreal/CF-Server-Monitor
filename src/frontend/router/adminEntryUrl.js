@@ -11,6 +11,10 @@
  *
  * 兼容说明：第三方主题的入口按 theme-develop.md 的历史约定写作 /admin#admin，
  * 该旧式同样解析为后台路由，这里接受它并把地址栏收敛到 #/admin 形式。
+ *
+ * 依赖此归一化的调用方：GitHub OAuth 回跳把 github_bound / github_error / github_login 放在 /admin 的 search 上，
+ * admin/index.vue 的 initAdmin 通过 route.query 读取它们（其中 github_login 用于换 localStorage jwt_token）。
+ * 移除或改动本归一化会导致这些 query 读不到，GitHub 登录换票等逻辑静默失效——改这里前请先核对上述读取点。
  */
 
 const ADMIN_PATH = '/admin'

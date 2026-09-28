@@ -591,7 +591,7 @@ import EditServerModal from './components/EditServerModal.vue'
 import BatchEditServersModal from './components/BatchEditServersModal.vue'
 import DeleteServerModal from './components/DeleteServerModal.vue'
 import CopyCommandModal from './components/CopyCommandModal.vue'
-import { adminApi, login, startGithubLogin, logout as apiLogout, upgradeDatabase, clearHistory, getApiBases, fetchConfig } from '../../utils/api'
+import { adminApi, login, startGithubLogin, logout as apiLogout, upgradeDatabase, clearHistory, getApiBases, fetchConfig, fetchSessionToken } from '../../utils/api'
 import { hasMultipleApiBases } from '../../utils/config.js'
 import { copyTextToClipboard } from '../../utils/clipboard.js'
 import { t, useTranslation } from '../../utils/i18n'
@@ -1328,10 +1328,11 @@ const getGithubLoginError = () => {
 }
 
 const clearGithubOAuthQuery = () => {
-  if (!route.query.github_bound && !route.query.github_error) return
+  if (!route.query.github_bound && !route.query.github_error && !route.query.github_login) return
   const query = { ...route.query }
   delete query.github_bound
   delete query.github_error
+  delete query.github_login
   router.replace({ path: '/admin', query })
 }
 
@@ -1340,6 +1341,13 @@ const initAdmin = async () => {
   if (hasCreds) {
     isLoggedIn.value = true
     syncApiIndexQuery()
+    // GitHub 登录只写了 HttpOnly cookie，用会话换回 jwt_token，与密码登录保持一致。
+    // 注意：github_login 由回调放在 /admin 的 search 上，hash 模式下 location.search 会被 base 吞掉，
+    // route.query 能读到它完全依赖 router 初始化前的 normalizeAdminEntryUrl 把 search 归一化进 hash；
+    // 若改动/移除该归一化，这里会静默失效（详见 router/adminEntryUrl.js）
+    if (route.query.github_login === '1' && !localStorage.getItem('jwt_token')) {
+      await fetchSessionToken(selectedApiIndex.value)
+    }
     const savedTurnstileToken = localStorage.getItem('turnstile_token')
     if (savedTurnstileToken) {
       turnstileToken.value = savedTurnstileToken
